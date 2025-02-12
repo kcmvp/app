@@ -32,10 +32,10 @@ func init() {
 	}
 	// init project config
 	cfg := viper.New()
+	cfg.SetConfigName(defaultCfgName) // name of cfg file (without extension)
+	cfg.SetConfigType("yaml")         // REQUIRED if the cfg file does not have the extension in the name
+	cfg.AddConfigPath(rootDir)        // optionally look for cfg in the working directory
 	cfgOpt = mo.Some(cfg)
-	cfg.SetConfigName(defaultCfgName)          // name of cfg file (without extension)
-	cfg.SetConfigType("yaml")                  // REQUIRED if the cfg file does not have the extension in the name
-	cfg.AddConfigPath(rootDir)                 // optionally look for cfg in the working directory
 	if err := cfg.ReadInConfig(); err != nil { // Find and read the cfg file
 		log.Println("Warning: no configuration file found")
 		cfgOpt = mo.None[*viper.Viper]()
