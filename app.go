@@ -6,45 +6,45 @@ import (
 	"github.com/kcmvp/app/util"
 	"github.com/samber/do/v2"
 	"github.com/samber/lo"
+	"github.com/samber/mo"
 	"github.com/spf13/viper"
 	"log"
+	"os"
+	"os/exec"
 	"strings"
-	"sync"
 )
 
 var (
-	once sync.Once
-	app  *Application
-	//rootDir string
-	cfg *viper.Viper
+	cfgOpt  mo.Option[*viper.Viper]
+	injOpt  mo.Option[do.Injector]
+	rootDir string
 )
 
 const (
-	DefaultCfg = "application"
+	defaultCfgName = "application"
 )
 
-type Application struct {
-	do.Injector
-	cfg  *viper.Viper
-	root string
-}
-
 func init() {
-	// init project config
-	cfg = viper.New()
-	cfg.SetConfigName(DefaultCfg)              // name of cfg file (without extension)
-	cfg.SetConfigType("yaml")                  // REQUIRED if the cfg file does not have the extension in the name
-	cfg.AddConfigPath(util.Root())             // optionally look for cfg in the working directory
-	if err := cfg.ReadInConfig(); err != nil { // Find and read the cfg file
-		panic(fmt.Errorf("fatal error cfg file: %w", err))
+	dir, _ := exec.Command("go", "list", "-m", "-f", "{{.Dir}}").CombinedOutput()
+	rootDir = util.CleanStr(string(dir))
+	if len(rootDir) == 0 {
+		rootDir = mo.TupleToResult(os.Executable()).MustGet()
 	}
-	// merge the configuration
-	// @todo need to support profile environment
-	if util.ActiveProfile().Test() {
+	// init project config
+	cfg := viper.New()
+	cfgOpt = mo.Some(cfg)
+	cfg.SetConfigName(defaultCfgName)          // name of cfg file (without extension)
+	cfg.SetConfigType("yaml")                  // REQUIRED if the cfg file does not have the extension in the name
+	cfg.AddConfigPath(rootDir)                 // optionally look for cfg in the working directory
+	if err := cfg.ReadInConfig(); err != nil { // Find and read the cfg file
+		log.Println("Warning: no configuration file found")
+		cfgOpt = mo.None[*viper.Viper]()
+	}
+	if cfgOpt.IsPresent() && util.ActiveProfile().Test() {
 		tCfg := viper.New()
-		tCfg.SetConfigName(fmt.Sprintf("%s_test.yaml", DefaultCfg)) // name of cfg file (without extension)
-		tCfg.SetConfigType("yaml")                                  // REQUIRED if the cfg file does not have the extension in the name
-		tCfg.AddConfigPath(util.Root())                             // optionally look for cfg in the working directory
+		tCfg.SetConfigName(fmt.Sprintf("%s_test.yaml", defaultCfgName)) // name of cfg file (without extension)
+		tCfg.SetConfigType("yaml")                                      // REQUIRED if the cfg file does not have the extension in the name
+		tCfg.AddConfigPath(rootDir)                                     // optionally look for cfg in the working directory
 		if err := tCfg.ReadInConfig(); err != nil {
 			panic(fmt.Errorf("failed to merge test configuration file: %w", err))
 		}
@@ -62,51 +62,39 @@ func init() {
 		if err := tCfg.MergeConfigMap(patch); err != nil {
 			panic(fmt.Errorf("failed to merge test configuration file: %w", err))
 		}
-		cfg = tCfg
+		cfgOpt = mo.Some(tCfg)
 	}
-}
-func App() *Application {
-	if app == nil {
-		once.Do(func() {
-			app = &Application{
-				Injector: do.NewWithOpts(&do.InjectorOpts{
-					HookAfterRegistration: []func(scope *do.Scope, serviceName string){
-						func(scope *do.Scope, serviceName string) {
-							fmt.Printf("scope is %s, name is %s \n", scope.Name(), serviceName)
-						},
-					},
-					Logf: func(format string, args ...any) {
-						log.Printf(format, args...)
-					},
-				}),
-				cfg:  cfg,
-				root: util.Root(),
-			}
-		})
-	}
-	return app
+
+	injOpt = mo.Some[do.Injector](do.NewWithOpts(&do.InjectorOpts{
+		HookAfterRegistration: []func(scope *do.Scope, serviceName string){
+			func(scope *do.Scope, serviceName string) {
+				fmt.Printf("scope is %s, name is %s \n", scope.Name(), serviceName)
+			},
+		},
+		Logf: func(format string, args ...any) {
+			log.Printf(format, args...)
+		},
+	}))
 }
 
-func (app *Application) Cfg() *viper.Viper {
-	return app.cfg
-}
-func Cfg() *viper.Viper {
-	return App().cfg
+func Cfg() mo.Option[*viper.Viper] {
+	return cfgOpt
 }
 
-func (app *Application) RootDir() string {
-	return app.root
-}
 func RootDir() string {
-	return App().root
+	return rootDir
+}
+
+func Container() do.Injector {
+	return injOpt.MustGet()
 }
 
 type ContextAware func(*viper.Viper) func(do.Injector)
 
-func Context(service ContextAware) func(do.Injector) {
-	return service(App().cfg)
-}
-
-func Register(servers ...func(do.Injector)) {
-	do.Package(servers...)(App())
-}
+//func Context(service ContextAware) func(do.Injector) {
+//	return service(App().cfg)
+//}
+//
+//func Register(servers ...func(do.Injector)) {
+//	do.Package(servers...)(App())
+//}

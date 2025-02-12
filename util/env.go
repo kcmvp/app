@@ -4,27 +4,10 @@ import (
 	"github.com/samber/lo"
 	"github.com/samber/mo"
 	"os"
-	"os/exec"
 	"regexp"
 	"runtime"
 	"strings"
 )
-
-var (
-	rootDir string
-)
-
-func init() {
-	dir, _ := exec.Command("go", "list", "-m", "-f", "{{.Dir}}").CombinedOutput()
-	rootDir = CleanStr(string(dir))
-	if len(rootDir) == 0 {
-		rootDir = mo.TupleToResult(os.Executable()).MustGet()
-	}
-}
-
-func Root() string {
-	return rootDir
-}
 
 type Profile string
 
