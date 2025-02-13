@@ -40,6 +40,7 @@ func init() {
 		log.Println("Warning: no configuration file found")
 		cfgOpt = mo.None[*viper.Viper]()
 	}
+	injOpt = mo.None[do.Injector]()
 	if cfgOpt.IsPresent() && util.ActiveProfile().Test() {
 		tCfg := viper.New()
 		tCfg.SetConfigName(fmt.Sprintf("%s_test.yaml", defaultCfgName)) // name of cfg file (without extension)
@@ -64,17 +65,18 @@ func init() {
 		}
 		cfgOpt = mo.Some(tCfg)
 	}
-
-	injOpt = mo.Some[do.Injector](do.NewWithOpts(&do.InjectorOpts{
-		HookAfterRegistration: []func(scope *do.Scope, serviceName string){
-			func(scope *do.Scope, serviceName string) {
-				fmt.Printf("scope is %s, name is %s \n", scope.Name(), serviceName)
+	if cfgOpt.IsPresent() {
+		injOpt = mo.Some[do.Injector](do.NewWithOpts(&do.InjectorOpts{
+			HookAfterRegistration: []func(scope *do.Scope, serviceName string){
+				func(scope *do.Scope, serviceName string) {
+					fmt.Printf("scope is %s, name is %s \n", scope.Name(), serviceName)
+				},
 			},
-		},
-		Logf: func(format string, args ...any) {
-			log.Printf(format, args...)
-		},
-	}))
+			Logf: func(format string, args ...any) {
+				log.Printf(format, args...)
+			},
+		}))
+	}
 }
 
 func Cfg() mo.Option[*viper.Viper] {
@@ -85,8 +87,8 @@ func RootDir() string {
 	return rootDir
 }
 
-func Container() do.Injector {
-	return injOpt.MustGet()
+func Container() mo.Option[do.Injector] {
+	return injOpt
 }
 
 type ContextAware func(*viper.Viper) func(do.Injector)
