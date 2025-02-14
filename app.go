@@ -30,14 +30,14 @@ type Resource interface {
 	Close() error
 }
 
-type Register[T any] struct {
+type Register struct {
 	Name        string
-	Constructor do.Provider[T]
+	Constructor do.Provider[Resource]
 }
 
-type Provider[T any] func(do.Injector) []Register[T]
+type Provider func(do.Injector) []Register
 
-func Start(providers ...Provider[Resource]) {
+func Start(providers ...Provider) {
 	once.Do(func() {
 		dir, _ := exec.Command("go", "list", "-m", "-f", "{{.Dir}}").CombinedOutput()
 		rootDir = util.CleanStr(string(dir))
@@ -84,8 +84,8 @@ func Start(providers ...Provider[Resource]) {
 				log.Printf(format, args...)
 			},
 		})
-		lo.ForEach(providers, func(provider Provider[Resource], _ int) {
-			lo.ForEach(provider(inj), func(register Register[Resource], _ int) {
+		lo.ForEach(providers, func(provider Provider, _ int) {
+			lo.ForEach(provider(inj), func(register Register, _ int) {
 				do.ProvideNamed(inj, register.Name, register.Constructor)
 			})
 		})
