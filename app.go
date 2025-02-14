@@ -35,7 +35,7 @@ type Register struct {
 	Constructor do.Provider[Resource]
 }
 
-type Provider func(do.Injector) []Register
+type Provider func() []Register
 
 func Start(providers ...Provider) {
 	once.Do(func() {
@@ -85,7 +85,7 @@ func Start(providers ...Provider) {
 			},
 		})
 		lo.ForEach(providers, func(provider Provider, _ int) {
-			lo.ForEach(provider(inj), func(register Register, _ int) {
+			lo.ForEach(provider(), func(register Register, _ int) {
 				do.ProvideNamed(inj, register.Name, register.Constructor)
 			})
 		})
