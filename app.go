@@ -35,7 +35,9 @@ type Register[T any] struct {
 	Constructor do.Provider[T]
 }
 
-func Start(registers ...Register[Resource]) {
+type Provider[T any] func(do.Injector) []Register[T]
+
+func Start(providers ...Provider[Resource]) {
 	once.Do(func() {
 		dir, _ := exec.Command("go", "list", "-m", "-f", "{{.Dir}}").CombinedOutput()
 		rootDir = util.CleanStr(string(dir))
@@ -82,8 +84,10 @@ func Start(registers ...Register[Resource]) {
 				log.Printf(format, args...)
 			},
 		})
-		lo.ForEach(registers, func(register Register[Resource], _ int) {
-			do.ProvideNamed(inj, register.Name, register.Constructor)
+		lo.ForEach(providers, func(provider Provider[Resource], _ int) {
+			lo.ForEach(provider(inj), func(register Register[Resource], _ int) {
+				do.ProvideNamed(inj, register.Name, register.Constructor)
+			})
 		})
 	})
 }
