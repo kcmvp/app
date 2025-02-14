@@ -24,18 +24,18 @@ var (
 
 const (
 	defaultCfgName = "application"
-	datasource     = "datasource"
 )
 
 type Resource interface {
 	Close() error
 }
 
-type Registry[T any] lo.Tuple2[string, do.Provider[T]]
+type Register[T any] struct {
+	Name        string
+	Constructor do.Provider[T]
+}
 
-type Register[T any] func(do.Injector) Registry[T]
-
-func Start(registries ...Registry[Resource]) {
+func Start(registers ...Register[Resource]) {
 	once.Do(func() {
 		dir, _ := exec.Command("go", "list", "-m", "-f", "{{.Dir}}").CombinedOutput()
 		rootDir = util.CleanStr(string(dir))
@@ -82,8 +82,8 @@ func Start(registries ...Registry[Resource]) {
 				log.Printf(format, args...)
 			},
 		})
-		lo.ForEach(registries, func(registry Registry[Resource], _ int) {
-			do.ProvideNamed(inj, registry.A, registry.B)
+		lo.ForEach(registers, func(register Register[Resource], _ int) {
+			do.ProvideNamed(inj, register.Name, register.Constructor)
 		})
 	})
 }
