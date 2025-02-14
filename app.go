@@ -35,7 +35,7 @@ type Registry[T any] lo.Tuple2[string, do.Provider[T]]
 
 type Register[T any] func(do.Injector) Registry[T]
 
-func Start(registers ...Registry[Resource]) {
+func Start(registries ...Registry[Resource]) {
 	once.Do(func() {
 		dir, _ := exec.Command("go", "list", "-m", "-f", "{{.Dir}}").CombinedOutput()
 		rootDir = util.CleanStr(string(dir))
@@ -82,7 +82,7 @@ func Start(registers ...Registry[Resource]) {
 				log.Printf(format, args...)
 			},
 		})
-		lo.ForEach(registers, func(registry Registry[Resource], _ int) {
+		lo.ForEach(registries, func(registry Registry[Resource], _ int) {
 			do.ProvideNamed(inj, registry.A, registry.B)
 		})
 	})
