@@ -31,9 +31,11 @@ type Resource interface {
 	Close() error
 }
 
-type Register[T any] func(do.Injector) (string, do.Provider[T])
+type Registry[T any] lo.Tuple2[string, do.Provider[T]]
 
-func Start(registers ...Register[Resource]) {
+type Register[T any] func(do.Injector) Registry[T]
+
+func Start(registers ...Registry[Resource]) {
 	once.Do(func() {
 		dir, _ := exec.Command("go", "list", "-m", "-f", "{{.Dir}}").CombinedOutput()
 		rootDir = util.CleanStr(string(dir))
@@ -80,9 +82,8 @@ func Start(registers ...Register[Resource]) {
 				log.Printf(format, args...)
 			},
 		})
-		lo.ForEach(registers, func(register Register[Resource], _ int) {
-			name, provider := register(inj)
-			do.ProvideNamed(inj, name, provider)
+		lo.ForEach(registers, func(registry Registry[Resource], _ int) {
+			do.ProvideNamed(inj, registry.A, registry.B)
 		})
 	})
 }
