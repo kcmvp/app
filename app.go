@@ -100,6 +100,10 @@ func Container() do.Injector {
 	return inj
 }
 
+func Cfg() *viper.Viper {
+	return cfg
+}
+
 func CfgMap(name string) map[string]string {
 	return cfg.GetStringMapString(name)
 }
