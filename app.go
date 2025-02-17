@@ -23,7 +23,7 @@ var (
 )
 
 const (
-	defaultCfgName = "application"
+	DefaultCfgName = "application"
 )
 
 type Resource interface {
@@ -45,14 +45,14 @@ func Start(providers ...Provider) {
 			rootDir = mo.TupleToResult(os.Executable()).MustGet()
 		}
 		cfg = viper.New()
-		cfg.SetConfigName(defaultCfgName)
+		cfg.SetConfigName(DefaultCfgName)
 		cfg.SetConfigType("yaml")
 		cfg.AddConfigPath(rootDir)
 		if err := cfg.ReadInConfig(); err != nil {
 			log.Println("Warning: no configuration file found")
 		} else if util.ActiveProfile().Test() {
 			tCfg := viper.New()
-			tCfg.SetConfigName(fmt.Sprintf("%s_test.yaml", defaultCfgName))
+			tCfg.SetConfigName(fmt.Sprintf("%s_test.yaml", DefaultCfgName))
 			tCfg.SetConfigType("yaml")
 			tCfg.AddConfigPath(rootDir)
 			if err := tCfg.ReadInConfig(); err != nil {
